@@ -18,6 +18,8 @@ rules:
     - 4
     - SwitchCase:
         1
+  no-constant-condition:
+    - none
   linebreak-style:
     - error
     - unix
