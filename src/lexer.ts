@@ -1,15 +1,15 @@
-type Identifier = { tag: "identifier", value: string }
-type Int = { tag: "int", value: number }
-type Semicolon = { tag: "semicolon" }
-type Comma = { tag: "comma" }
-type LBracket = { tag: "lbracket" }
-type RBracket = { tag: "rbracket" }
-type CurlyLBracket = { tag: "curlylbracket" }
-type CurlyRBracket = { tag: "curlyrbracket" }
-type Assign = { tag: "assign" }
-type True = { tag: "true" }
-type False = { tag: "false" }
-type Token = Identifier | Int | Semicolon | Comma | LBracket | RBracket | CurlyLBracket | CurlyRBracket | Assign | True | False
+export type Identifier = { tag: "identifier", value: string }
+export type Int = { tag: "int", value: number }
+export type Semicolon = { tag: "semicolon" }
+export type Comma = { tag: "comma" }
+export type LBracket = { tag: "lbracket" }
+export type RBracket = { tag: "rbracket" }
+export type CurlyLBracket = { tag: "curlylbracket" }
+export type CurlyRBracket = { tag: "curlyrbracket" }
+export type Assign = { tag: "assign" }
+export type True = { tag: "true" }
+export type False = { tag: "false" }
+export type Token = Identifier | Int | Semicolon | Comma | LBracket | RBracket | CurlyLBracket | CurlyRBracket | Assign | True | False
 
 type SubLexerOutput = { token: Token, newPos: number }
 
@@ -75,7 +75,6 @@ function lexNumber(program: string, pos: number): SubLexerOutput {
 
     return { token: { tag: "int", value: number }, newPos: pos };
 }
-
 
 export function lex(program: string): Token[] {
     const tokens: Token[] = [];
