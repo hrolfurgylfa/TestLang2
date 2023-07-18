@@ -106,3 +106,21 @@ export function lex(program: string): Token[] {
     }
     return tokens;
 }
+
+export function stringifyToken(token: Token | undefined): string {
+    if (token == undefined) return "undefined";
+
+    let extra: string;
+    switch (token.tag) {
+        case "identifier": extra = token.value; break;
+        case "int": extra = token.value.toString(); break;
+        default: extra = ""; break;
+    }
+
+    if (extra != "") extra = `(${extra})`;
+    return token.tag + extra;
+}
+
+export function stringifyTokens(tokens: Array<Token>): string {
+    return "[" + tokens.map(stringifyToken).join(", ") + "]";
+}
