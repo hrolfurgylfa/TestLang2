@@ -1,3 +1,4 @@
+import { evalSimple } from "./evaluator";
 import { lex, stringifyTokens } from "./lexer";
 import { parseStatements, stringifyAst } from "./parser";
 import { TokenConsumer } from "./token_consumer";
@@ -8,3 +9,4 @@ console.log("Tokens:", stringifyTokens(tokens));
 const consumer = new TokenConsumer(tokens);
 const statements = parseStatements(consumer);
 console.log(stringifyAst(statements));
+evalSimple(statements);
