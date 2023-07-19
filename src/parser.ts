@@ -148,7 +148,6 @@ function parsePrimary(tokens: TokenConsumer): Expression {
             return { tag: "brackets", expr };
         }
         default:
-            console.log(tokens);
             throw Error(`Expected expression but found ${stringifyToken(token)} instead.`);
     }
 }

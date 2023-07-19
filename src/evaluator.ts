@@ -69,7 +69,6 @@ export function evalExpression(env: Environment, expr: Expression): Value {
             const left = evalExpression(env, expr.left);
             const right = evalExpression(env, expr.right);
             if (expr.op == "+" || expr.op == "-" || expr.op == "*" || expr.op == "/") {
-                console.log(expr.left.tag, expr.right.tag);
                 if (left.tag == "int" && right.tag == "int") {
                     switch (expr.op) {
                         case "+": return { tag: "int", value: left.value + right.value };
