@@ -5,7 +5,8 @@ if_unless     -> "unless" expression if_than? ;
 if_than       -> "than" ( expression | body ) if_unless? ;
 body          -> "{" statement* "}" ;
 
-expression    -> equality ;
+expression    -> exprif ;
+exprif        -> equality ( "unless" equality "than" equality )+ ;
 equality      -> comparison ( ( "!=" | "==" ) comparison )* ;
 comparison    -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term          -> factor ( ( "-" | "+" ) factor )* ;
@@ -13,7 +14,6 @@ factor        -> unary ( ( "/" | "*" ) unary )* ;
 unary         -> ( "!" | "-" ) unary | primary ;
 primary       -> num+ | identifier | "true" | "false" | "none"
                | "(" expression ")" | call | exprif ;
-exprif        -> expression ( "unless" expression "than" expression )+ ;
 call          -> identifier "(" expression ( "," expression )* ")"
                | identifier "()" ;
 
