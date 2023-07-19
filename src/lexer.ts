@@ -1,24 +1,30 @@
-export type Identifier = { tag: "identifier", value: string }
-export type Int = { tag: "int", value: number }
-export type Semicolon = { tag: "semicolon" }
-export type Comma = { tag: "comma" }
-export type LBracket = { tag: "lbracket" }
-export type RBracket = { tag: "rbracket" }
-export type CurlyLBracket = { tag: "curlylbracket" }
-export type CurlyRBracket = { tag: "curlyrbracket" }
-export type Assign = { tag: "assign" }
-export type True = { tag: "true" }
-export type False = { tag: "false" }
-export type Token = Identifier | Int | Semicolon | Comma | LBracket | RBracket | CurlyLBracket | CurlyRBracket | Assign | True | False
+export type Token =
+    | { tag: "comparison", op: "<" | ">" | "<=" | ">=" }
+    | { tag: "equality", reverse: boolean }
+    | { tag: "identifier", value: string }
+    | { tag: "int", value: number }
+    | { tag: "semicolon" }
+    | { tag: "comma" }
+    | { tag: "lbracket" }
+    | { tag: "rbracket" }
+    | { tag: "curlylbracket" }
+    | { tag: "curlyrbracket" }
+    | { tag: "assign" }
+    | { tag: "true" }
+    | { tag: "false" }
+    | { tag: "eof" }
+    | { tag: "add" }
+    | { tag: "subtract" }
+    | { tag: "multiply" }
+    | { tag: "divide" }
+    | { tag: "bang" }
 
 type SubLexerOutput = { token: Token, newPos: number }
-
-const extraIdentifiers = ["+", "*", "-", "/"];
 
 function isIdentifierChar(char: string): boolean {
     const n = char.charCodeAt(0);
     const isAscii = (n >= 65 && n < 91) || (n >= 97 && n < 123);
-    return isAscii || extraIdentifiers.includes(char) || RegExp(/^\p{L}/, "u").test(char);
+    return isAscii || RegExp(/^\p{L}/, "u").test(char);
 }
 
 function isNumber(char: string): boolean {
@@ -92,6 +98,16 @@ export function lex(program: string): Token[] {
             case "{": tokens.push({ tag: "curlylbracket" }); continue;
             case "}": tokens.push({ tag: "curlyrbracket" }); continue;
             case "=": tokens.push({ tag: "assign" }); continue;
+            case "==": tokens.push({ tag: "equality", reverse: false }); continue;
+            case "!=": tokens.push({ tag: "equality", reverse: true }); continue;
+            case "<": tokens.push({ tag: "comparison", op: "<" }); continue;
+            case ">": tokens.push({ tag: "comparison", op: ">" }); continue;
+            case "<=": tokens.push({ tag: "comparison", op: "<=" }); continue;
+            case ">=": tokens.push({ tag: "comparison", op: ">=" }); continue;
+            case "+": tokens.push({ tag: "add" }); continue;
+            case "-": tokens.push({ tag: "subtract" }); continue;
+            case "*": tokens.push({ tag: "multiply" }); continue;
+            case "/": tokens.push({ tag: "divide" }); continue;
             default:
                 if (isNumber(currChar)) {
                     const { token, newPos } = lexNumber(program, i);
@@ -104,6 +120,8 @@ export function lex(program: string): Token[] {
         }
         throw Error(`Unknown character ${currChar} at position ${i}`);
     }
+
+    tokens.push({ tag: "eof" });
     return tokens;
 }
 
