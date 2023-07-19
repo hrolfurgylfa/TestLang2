@@ -22,7 +22,9 @@ export function parseStatements(tokens: TokenConsumer): Array<Statement> {
     while (true) {
         const token = tokens.peek();
         switch (token.tag) {
-            case "semicolon": console.assert(tokens.advance().tag == "semicolon");
+            case "semicolon":
+                console.assert(tokens.advance().tag == "semicolon");
+                break;
             case "eof": return statements;
             default: {
                 const expr = parseExpression(tokens);
