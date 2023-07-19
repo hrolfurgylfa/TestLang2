@@ -177,6 +177,6 @@ export function stringifyExpression(expr: Expression): string {
         case "call": return `${expr.name}(${expr.arguments.map(stringifyExpression).join(", ")})`;
         case "brackets": return `(${stringifyExpression(expr.expr)})`;
         case "binary": return `${stringifyExpression(expr.left)} ${expr.op} ${stringifyExpression(expr.right)}`;
-        case "unary": return `${expr.op} ${expr.expr}`;
+        case "unary": return `${expr.op}${stringifyExpression(expr.expr)}`;
     }
 }
