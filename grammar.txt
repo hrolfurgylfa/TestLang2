@@ -1,13 +1,16 @@
-program        → statement* ;
-statement      → ( expression ) ";"
+program       -> statement* ;
+statement     -> ( expression ) ";" ;
 
-expression     → equality ;
-equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" ) unary )* ;
-unary          → ( "!" | "-" ) unary | primary ;
-primary        → INT | identifier | "true" | "false" | "none"
+expression    -> equality ;
+equality      -> comparison ( ( "!=" | "==" ) comparison )* ;
+comparison    -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term          -> factor ( ( "-" | "+" ) factor )* ;
+factor        -> unary ( ( "/" | "*" ) unary )* ;
+unary         -> ( "!" | "-" ) unary | primary ;
+primary       -> num+ | identifier | "true" | "false" | "none"
                | "(" expression ")" | call ;
-call           → identifier "(" expression ( "," expression )* ")"
-               | identifier "()"
+call          -> identifier "(" expression ( "," expression )* ")"
+               | identifier "()" ;
+identifier    -> char ( char | num )* ;
+char          -> [a-z] | [A-Z] | [\d] ;
+num           -> [0-9] ;
