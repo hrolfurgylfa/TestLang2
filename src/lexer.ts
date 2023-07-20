@@ -94,7 +94,7 @@ function countLocation(loc: Location, symbol: string): Location {
         loc.column += symbol.length;
     } else {
         loc.line += numEnter;
-        loc.column = symbol.length - symbol.lastIndexOf("\n");
+        loc.column = symbol.length - (symbol.lastIndexOf("\n")) - 1;
     }
 
     return locCopy;
