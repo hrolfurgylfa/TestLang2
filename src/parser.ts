@@ -1,5 +1,6 @@
 import { stringifyToken } from "./lexer"
 import { TokenConsumer } from "./token_consumer"
+import { TLSyntaxError } from "./errors"
 
 export type BinaryOperator = "==" | "!=" | "<" | ">" | "<=" | ">=" | "+" | "-" | "*" | "/"
 
@@ -16,6 +17,15 @@ export type SLet = { tag: "let", name: string, value: Expression }
 export type SNoop = { tag: "noop" }
 export type Statement = SExpr | SLet | SNoop
 
+function syntaxError(tokens: TokenConsumer, expected: string, options?: { peek?: boolean }): never {
+    const defaultOpt = { peek: false };
+    const opt = { ...defaultOpt, ...options } || defaultOpt
+    const { token, loc } = opt.peek ? tokens.peekFull() : tokens.previousFull();
+    throw new TLSyntaxError(
+        `Expected ${expected} but found ${token.tag} instead.` +
+        `\n\nLine: ${loc.line}, Column: ${loc.column}.`);
+}
+
 export function parseStatements(tokens: TokenConsumer): Array<Statement> {
     const statements: Array<Statement> = [];
 
@@ -31,9 +41,8 @@ export function parseStatements(tokens: TokenConsumer): Array<Statement> {
                 statements.push({ tag: "expr", expr });
 
                 const token2 = tokens.advance();
-                if (token2.tag != "semicolon") {
-                    throw Error(`Expected semicolon but found ${stringifyToken(token2)} instead.`);
-                }
+                if (token2.tag != "semicolon")
+                    syntaxError(tokens, "semicolon", { peek: true });
             }
         }
     }
@@ -57,7 +66,7 @@ export function parseFunctionParams(tokens: TokenConsumer): Array<Expression> {
                 const expr = parseExpression(tokens);
                 funcArguments.push(expr);
             default:
-                throw Error(`Expected closing bracket of function call or comma. Found ${stringifyToken(token)} instead.`);
+                syntaxError(tokens, "closing bracket of function call or comma");
         }
     }
 }
@@ -142,13 +151,12 @@ function parsePrimary(tokens: TokenConsumer): Expression {
         case "lbracket": {
             const expr = parseExpression(tokens);
             const token = tokens.advance();
-            if (token.tag != "rbracket") {
-                throw Error(`Expected right bracket but found ${stringifyToken(token)} instead`);
-            }
+            if (token.tag != "rbracket")
+                syntaxError(tokens, "right bracket");
             return { tag: "brackets", expr };
         }
         default:
-            throw Error(`Expected expression but found ${stringifyToken(token)} instead.`);
+            syntaxError(tokens, "expression");
     }
 }
 
