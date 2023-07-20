@@ -1,23 +1,35 @@
-import { Token } from "./lexer"
+import { FullToken, Location, Token } from "./lexer"
 
 export class TokenConsumer {
-    private tokens: Array<Token>;
+    private tokens: Array<FullToken>;
     private current: number;
-    constructor(tokens: Array<Token>) {
+    constructor(tokens: Array<FullToken>) {
         this.tokens = tokens;
         this.current = 0;
     }
 
-    peek(): Token {
+    peekFull(): FullToken {
         return this.tokens[this.current];
+    }
+
+    peek(): Token {
+        return this.peekFull().token;
     }
 
     isAtEnd(): boolean {
         return this.peek().tag == "eof";
     }
 
-    previous(): Token {
+    previousFull(): FullToken {
         return this.tokens[this.current - 1];
+    }
+
+    previous(): Token {
+        return this.previousFull().token;
+    }
+
+    previousLoc(): Location {
+        return this.previousFull().loc;
     }
 
     check(tag: Token["tag"]): boolean {

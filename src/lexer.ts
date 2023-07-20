@@ -1,3 +1,5 @@
+export type FullToken = { token: Token, loc: Location }
+export type Location = { line: number, column: number }
 export type Token =
     | { tag: "comparison", op: "<" | ">" | "<=" | ">=" }
     | { tag: "equality", reverse: boolean }
@@ -19,7 +21,7 @@ export type Token =
     | { tag: "divide" }
     | { tag: "bang" }
 
-type SubLexerOutput = { token: Token, newPos: number }
+type SubLexerOutput = { token: FullToken, newPos: number }
 
 function isIdentifierChar(char: string): boolean {
     const n = char.charCodeAt(0);
@@ -44,7 +46,7 @@ function parseNumber(char: string): number {
     }
 }
 
-function lexIdentifier(program: string, pos: number): SubLexerOutput {
+function lexIdentifier(program: string, pos: number, count: (s: string) => Location): SubLexerOutput {
     let identifier = "";
     for (; pos < program.length; pos++) {
         const currChar = program[pos];
@@ -55,6 +57,7 @@ function lexIdentifier(program: string, pos: number): SubLexerOutput {
         }
     }
 
+    const loc = count(identifier);
     let token: Token;
     switch (identifier) {
         case "true": token = { tag: "true" }; break;
@@ -63,10 +66,10 @@ function lexIdentifier(program: string, pos: number): SubLexerOutput {
             token = { tag: "identifier", value: identifier };
     }
 
-    return { token, newPos: pos };
+    return { token: { token, loc }, newPos: pos };
 }
 
-function lexNumber(program: string, pos: number): SubLexerOutput {
+function lexNumber(program: string, pos: number, count: (s: string) => Location): SubLexerOutput {
     let number = 0;
     for (; pos < program.length; pos++) {
         const currChar = program[pos];
@@ -79,49 +82,77 @@ function lexNumber(program: string, pos: number): SubLexerOutput {
         }
     }
 
-    return { token: { tag: "int", value: number }, newPos: pos };
+    const loc = count(number.toString());
+    const token: FullToken = { token: { tag: "int", value: number }, loc }
+    return { token, newPos: pos };
 }
 
-export function lex(program: string): Token[] {
-    const tokens: Token[] = [];
-    for (let i = 0; i < program.length; i++) {
-        const currChar = program[i];
-        switch (currChar) {
-            case " ":
-            case "\n":
-            case "\t":
-            case "\r": continue;
-            case ";": tokens.push({ tag: "semicolon" }); continue;
-            case ",": tokens.push({ tag: "comma" }); continue;
-            case "(": tokens.push({ tag: "lbracket" }); continue;
-            case ")": tokens.push({ tag: "rbracket" }); continue;
-            case "{": tokens.push({ tag: "curlylbracket" }); continue;
-            case "}": tokens.push({ tag: "curlyrbracket" }); continue;
-            case "=": tokens.push({ tag: "assign" }); continue;
-            case "==": tokens.push({ tag: "equality", reverse: false }); continue;
-            case "!=": tokens.push({ tag: "equality", reverse: true }); continue;
-            case "<": tokens.push({ tag: "comparison", op: "<" }); continue;
-            case ">": tokens.push({ tag: "comparison", op: ">" }); continue;
-            case "<=": tokens.push({ tag: "comparison", op: "<=" }); continue;
-            case ">=": tokens.push({ tag: "comparison", op: ">=" }); continue;
-            case "+": tokens.push({ tag: "add" }); continue;
-            case "-": tokens.push({ tag: "subtract" }); continue;
-            case "*": tokens.push({ tag: "multiply" }); continue;
-            case "/": tokens.push({ tag: "divide" }); continue;
-            default:
-                if (isNumber(currChar)) {
-                    const { token, newPos } = lexNumber(program, i);
-                    tokens.push(token); i = newPos - 1; continue;
-                }
-                if (isIdentifierChar(currChar)) {
-                    const { token, newPos } = lexIdentifier(program, i);
-                    tokens.push(token); i = newPos - 1; continue;
-                }
-        }
-        throw Error(`Unknown character ${currChar} at position ${i}`);
+function countLocation(loc: Location, symbol: string): Location {
+    const locCopy = { ...loc };
+    const numEnter = (symbol.match(/\n/g) || []).length;
+    if (numEnter == 0) {
+        loc.column += symbol.length;
+    } else {
+        loc.line += numEnter;
+        loc.column = symbol.length - symbol.lastIndexOf("\n");
     }
 
-    tokens.push({ tag: "eof" });
+    return locCopy;
+}
+
+function match(program: string, i: number, target: string): boolean {
+    return program.slice(i, i + target.length) === target;
+}
+
+export function lex(program: string): FullToken[] {
+    const tokens: FullToken[] = [];
+    let loc = { line: 0, column: 0 };
+    let count = (s: string) => countLocation(loc, s);
+    let symbols: Array<[string, null | Token]> = [
+        [" ", null],
+        ["\n", null],
+        ["\t", null],
+        ["\r", null],
+        [";", { tag: "semicolon" }],
+        [",", { tag: "comma" }],
+        ["(", { tag: "lbracket" }],
+        [")", { tag: "rbracket" }],
+        ["{", { tag: "curlylbracket" }],
+        ["}", { tag: "curlyrbracket" }],
+        ["=", { tag: "assign" }],
+        ["==", { tag: "equality", reverse: false }],
+        ["!=", { tag: "equality", reverse: true }],
+        ["<", { tag: "comparison", op: "<" }],
+        [">", { tag: "comparison", op: ">" }],
+        ["<=", { tag: "comparison", op: "<=" }],
+        [">=", { tag: "comparison", op: ">=" }],
+        ["+", { tag: "add" }],
+        ["-", { tag: "subtract" }],
+        ["*", { tag: "multiply" }],
+        ["/", { tag: "divide" }],
+    ];
+    nextChar: for (let i = 0; i < program.length;) {
+        for (let j = 0; j < symbols.length; j++) {
+            const [symbol, token] = symbols[j];
+            if (match(program, i, symbol)) {
+                i += symbol.length;
+                const loc = count(symbol);
+                if (token !== null) tokens.push({ token, loc });
+                continue nextChar;
+            }
+        }
+        if (isNumber(program[i])) {
+            const { token, newPos } = lexNumber(program, i, count);
+            tokens.push(token); i = newPos; continue;
+        }
+        if (isIdentifierChar(program[i])) {
+            const { token, newPos } = lexIdentifier(program, i, count);
+            tokens.push(token); i = newPos; continue;
+        }
+        throw Error(`Unknown character \"${program[i]}\" at position ${i}`);
+    }
+
+    tokens.push({ token: { tag: "eof" }, loc });
     return tokens;
 }
 
