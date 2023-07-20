@@ -134,4 +134,3 @@ function print(args: Array<Value>): Value {
 export const defaultEnv: Map<string, Value> = Map({
     print: { tag: "internal_func", name: "print", args: [], func: print },
 });
-
