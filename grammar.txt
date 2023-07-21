@@ -1,9 +1,10 @@
 program       -> statement* ;
 statement     -> ( expression | if ) ";" ;
-if            -> ( expression | body ) if_unless ;
+if            -> expr_body if_unless ;
 if_unless     -> "unless" expression if_than? ;
-if_than       -> "than" ( expression | body ) if_unless? ;
+if_than       -> "than" expr_body if_unless? ;
 body          -> "{" statement* "}" ;
+expr_body     -> expression | body;
 
 expression    -> exprif ;
 exprif        -> equality ( "unless" equality "than" equality )+ ;
