@@ -1,4 +1,5 @@
-import { Expression, Statement } from "./parser"
+import { Expression, SIf, SScope, SUnless, Statement } from "./parser"
+import { assertUnreachable } from "./helpers";
 import { Map } from "immutable";
 
 export type VFuncInternal = { tag: "internal_func", name: string | undefined, args: Array<string>, func: (args: Array<Value>) => Value }
@@ -8,6 +9,15 @@ export type VNone = { tag: "none" }
 export type Value = VFuncInternal | VFunc | VInt | VNone
 
 export type Environment = Map<string, Value>
+
+function toBoolean(value: Value): boolean {
+    switch (value.tag) {
+        case "none": return false;
+        case "int": return value.value != 0;
+        default:
+            throw Error(`Type ${value.tag} cannot be converted to true or false.`);
+    }
+}
 
 function envNotFound(type: string, name: string): never {
     throw Error(`${type} ${name} could not be found in the current scope, are you sure it is spelled correctly?`);
@@ -103,6 +113,35 @@ export function evalExpression(env: Environment, expr: Expression): Value {
     }
 }
 
+function evalExpressionBody(env: Environment, exprBody: SScope | Expression) {
+    if (exprBody.tag !== "scope") evalExpression(env, exprBody);
+    else evalStatements(env, exprBody.statements);
+}
+
+function evalIfStatement(env: Environment, ifStatement: SIf) {
+    let unless: SUnless | undefined = ifStatement.unless;
+    let run = ifStatement.run;
+
+    while (true) {
+        if (unless === undefined) {
+            evalExpressionBody(env, run);
+            return;
+        }
+
+        if (!toBoolean(evalExpression(env, unless.condition))) {
+            // Unless is false, we execute the code in run.
+            evalExpressionBody(env, run);
+            return;
+        } else if (unless.then === undefined) {
+            // We don't have any more "else if" statements
+            return;
+        } else {
+            run = unless.then.run;
+            unless = unless.then.unless;
+        }
+    }
+}
+
 export function evalStatements(env: Environment, statements: Array<Statement>) {
     for (const statement of statements) {
         switch (statement.tag) {
@@ -111,6 +150,14 @@ export function evalStatements(env: Environment, statements: Array<Statement>) {
             case "let":
                 env = env.set(statement.name, evalExpression(env, statement.value));
                 break;
+            case "scope":
+                evalStatements(env, statement.statements);
+                break;
+            case "if":
+                evalIfStatement(env, statement);
+                break;
+            default:
+                assertUnreachable(statement);
         }
     }
 }

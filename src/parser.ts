@@ -1,4 +1,3 @@
-import { stringifyToken } from "./lexer"
 import { TokenConsumer } from "./token_consumer"
 import { TLSyntaxError } from "./errors"
 
@@ -12,10 +11,14 @@ export type EBinary = { tag: "binary", left: Expression, right: Expression, op: 
 export type EUnary = { tag: "unary", expr: Expression, op: "!" | "-" }
 export type Expression = EVar | EInt | ECall | EBrackets | EBinary | EUnary
 
+export type SScope = { tag: "scope", statements: Array<Statement> }
+export type SIf = { tag: "if", run: SScope | Expression, unless: SUnless }
+export type SUnless = { tag: "unless", condition: Expression, then: SThen | undefined }
+export type SThen = { tag: "then", run: SScope | Expression, unless: SUnless | undefined }
 export type SExpr = { tag: "expr", expr: Expression }
 export type SLet = { tag: "let", name: string, value: Expression }
 export type SNoop = { tag: "noop" }
-export type Statement = SExpr | SLet | SNoop
+export type Statement = SScope | SIf | SExpr | SLet | SNoop
 
 function syntaxError(tokens: TokenConsumer, expected: string, options?: { peek?: boolean }): never {
     const defaultOpt = { peek: false };
@@ -24,6 +27,32 @@ function syntaxError(tokens: TokenConsumer, expected: string, options?: { peek?:
     throw new TLSyntaxError(
         `Expected ${expected} but found ${token.tag} instead.` +
         `\n\nLine: ${loc.line}, Column: ${loc.column}.`);
+}
+
+function parseExpressionBody(tokens: TokenConsumer): SScope | Expression {
+    let run: SScope | Expression;
+    if (tokens.match("curlylbracket")) {
+        run = { tag: "scope", statements: parseStatements(tokens) };
+    } else {
+        run = parseExpression(tokens);
+    }
+    return run;
+}
+
+function parseUnless(tokens: TokenConsumer): SUnless | undefined {
+    if (tokens.match("unless")) {
+        const condition = parseExpression(tokens);
+
+        return { tag: "unless", condition, then: parseThen(tokens) }
+    } else return undefined;
+}
+
+function parseThen(tokens: TokenConsumer): SThen | undefined {
+    if (tokens.match("then")) {
+        const run = parseExpressionBody(tokens);
+
+        return { tag: "then", run, unless: parseUnless(tokens) }
+    } else return undefined;
 }
 
 export function parseStatements(tokens: TokenConsumer): Array<Statement> {
@@ -36,13 +65,25 @@ export function parseStatements(tokens: TokenConsumer): Array<Statement> {
                 console.assert(tokens.advance().tag == "semicolon");
                 break;
             case "eof": return statements;
+            case "curlylbracket":
+                console.assert(tokens.advance().tag == "curlylbracket");
+                break;
+            case "curlyrbracket":
+                console.assert(tokens.advance().tag == "curlyrbracket");
+                return statements;
             default: {
-                const expr = parseExpression(tokens);
-                statements.push({ tag: "expr", expr });
-
-                const token2 = tokens.advance();
-                if (token2.tag != "semicolon")
-                    syntaxError(tokens, "semicolon", { peek: true });
+                const run = parseExpressionBody(tokens);
+                const unless = parseUnless(tokens);
+                if (unless) {
+                    statements.push({ tag: "if", run, unless });
+                } else {
+                    if (run.tag == "scope") statements.push(run);
+                    else {
+                        statements.push({ tag: "expr", expr: run });
+                        if (tokens.match("semicolon")) break;
+                        else syntaxError(tokens, "semicolon", { peek: true });
+                    }
+                }
             }
         }
     }

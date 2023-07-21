@@ -20,6 +20,8 @@ export type Token =
     | { tag: "multiply" }
     | { tag: "divide" }
     | { tag: "bang" }
+    | { tag: "unless" }
+    | { tag: "then" }
 
 type SubLexerOutput = { token: FullToken, newPos: number }
 
@@ -62,6 +64,8 @@ function lexIdentifier(program: string, pos: number, count: (s: string) => Locat
     switch (identifier) {
         case "true": token = { tag: "true" }; break;
         case "false": token = { tag: "false" }; break;
+        case "unless": token = { tag: "unless" }; break;
+        case "then": token = { tag: "then" }; break;
         default:
             token = { tag: "identifier", value: identifier };
     }
