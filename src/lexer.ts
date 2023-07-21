@@ -109,6 +109,12 @@ export function lex(program: string): FullToken[] {
     let loc = { line: 1, column: 1 };
     let count = (s: string) => countLocation(loc, s);
     let symbols: Array<[string, null | Token]> = [
+        ["==", { tag: "equality", reverse: false }],
+        ["!=", { tag: "equality", reverse: true }],
+        ["<", { tag: "comparison", op: "<" }],
+        [">", { tag: "comparison", op: ">" }],
+        ["<=", { tag: "comparison", op: "<=" }],
+        [">=", { tag: "comparison", op: ">=" }],
         [" ", null],
         ["\n", null],
         ["\t", null],
@@ -120,12 +126,6 @@ export function lex(program: string): FullToken[] {
         ["{", { tag: "curlylbracket" }],
         ["}", { tag: "curlyrbracket" }],
         ["=", { tag: "assign" }],
-        ["==", { tag: "equality", reverse: false }],
-        ["!=", { tag: "equality", reverse: true }],
-        ["<", { tag: "comparison", op: "<" }],
-        [">", { tag: "comparison", op: ">" }],
-        ["<=", { tag: "comparison", op: "<=" }],
-        [">=", { tag: "comparison", op: ">=" }],
         ["+", { tag: "add" }],
         ["-", { tag: "subtract" }],
         ["*", { tag: "multiply" }],
