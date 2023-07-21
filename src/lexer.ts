@@ -94,7 +94,7 @@ function countLocation(loc: Location, symbol: string): Location {
         loc.column += symbol.length;
     } else {
         loc.line += numEnter;
-        loc.column = symbol.length - (symbol.lastIndexOf("\n")) - 1;
+        loc.column = symbol.length - (symbol.lastIndexOf("\n"));
     }
 
     return locCopy;
@@ -106,7 +106,7 @@ function match(program: string, i: number, target: string): boolean {
 
 export function lex(program: string): FullToken[] {
     const tokens: FullToken[] = [];
-    let loc = { line: 0, column: 0 };
+    let loc = { line: 1, column: 1 };
     let count = (s: string) => countLocation(loc, s);
     let symbols: Array<[string, null | Token]> = [
         [" ", null],
