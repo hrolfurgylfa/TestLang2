@@ -1,5 +1,6 @@
 import { TokenConsumer } from "./token_consumer"
 import { TLSyntaxError } from "./errors"
+import { assertUnreachable } from "./helpers"
 
 export type BinaryOperator = "==" | "!=" | "<" | ">" | "<=" | ">=" | "+" | "-" | "*" | "/"
 
@@ -65,9 +66,6 @@ export function parseStatements(tokens: TokenConsumer): Array<Statement> {
                 console.assert(tokens.advance().tag == "semicolon");
                 break;
             case "eof": return statements;
-            case "curlylbracket":
-                console.assert(tokens.advance().tag == "curlylbracket");
-                break;
             case "curlyrbracket":
                 console.assert(tokens.advance().tag == "curlyrbracket");
                 return statements;
@@ -201,22 +199,43 @@ function parsePrimary(tokens: TokenConsumer): Expression {
     }
 }
 
+function stringifyBodyExpression(bodyExpr: SScope | Expression, indent: number) {
+    if (bodyExpr.tag == "scope") {
+        return _stringifyAst([bodyExpr], indent);
+    } else {
+        return " ".repeat(indent) + stringifyExpression(bodyExpr);
+    }
+}
+
+function stringifyUnless(unless: SUnless, indent: number): string {
+    return ` unless ${stringifyExpression(unless.condition)}${unless.then ? stringifyThen(unless.then, indent) : ";"}`;
+}
+
+function stringifyThen(then: SThen, indent: number): string {
+    return ` then ${stringifyBodyExpression(then.run, indent)}${then.unless ? stringifyUnless(then.unless, indent) : ";"}`;
+}
+
 export function stringifyAst(statements: Array<Statement>): string { return _stringifyAst(statements, 0); }
 function _stringifyAst(statements: Array<Statement>, indent: number): string {
     const indentStr = " ".repeat(indent);
     let ret = "";
 
     for (const statement of statements) {
-        ret += indentStr;
         switch (statement.tag) {
-            case "expr": ret += stringifyExpression(statement.expr); break;
-            case "let": ret += `let ${statement.name} = ${stringifyExpression(statement.value)}`; break;
+            case "expr": ret += indentStr + stringifyExpression(statement.expr) + ";"; break;
+            case "let": ret += `${indentStr}let ${statement.name} = ${stringifyExpression(statement.value)};`; break;
             case "noop": break;
+            case "scope":
+                console.log(`Hello ${indent}`);
+                ret += `${indentStr}{\n${_stringifyAst(statement.statements, indent + 4)}\n${indentStr}}`;
+                break;
+            case "if": ret += `${stringifyBodyExpression(statement.run, indent)}${stringifyUnless(statement.unless, indent)}`; break;
+            default: assertUnreachable(statement);
         }
-        ret += `;\n`;
+        ret += "\n";
     }
 
-    return ret;
+    return ret.slice(0, -1);
 }
 
 export function stringifyExpression(expr: Expression): string {
