@@ -1,0 +1,7 @@
+{
+    {
+        print(42);
+        print(44);
+    }
+    {print(12);} unless 1==1;
+} unless 1 == 2;
