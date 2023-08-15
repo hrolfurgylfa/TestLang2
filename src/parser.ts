@@ -69,6 +69,9 @@ export function parseStatements(tokens: TokenConsumer): Array<Statement> {
             case "curlyrbracket":
                 console.assert(tokens.advance().tag == "curlyrbracket");
                 return statements;
+            case "comment":
+                console.assert(tokens.advance().tag == "comment");
+                break;
             default: {
                 const run = parseExpressionBody(tokens);
                 const unless = parseUnless(tokens);

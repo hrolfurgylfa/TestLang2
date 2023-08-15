@@ -1,3 +1,5 @@
+import { assert } from "./helpers";
+
 export type FullToken = { token: Token, loc: Location }
 export type Location = { line: number, column: number }
 export type Token =
@@ -5,6 +7,7 @@ export type Token =
     | { tag: "equality", reverse: boolean }
     | { tag: "identifier", value: string }
     | { tag: "int", value: number }
+    | { tag: "comment", key: string | undefined }
     | { tag: "semicolon" }
     | { tag: "comma" }
     | { tag: "lbracket" }
@@ -91,6 +94,29 @@ function lexNumber(program: string, pos: number, count: (s: string) => Location)
     return { token, newPos: pos };
 }
 
+function lexRegExp(regexp: RegExp, getToken: (match: RegExpMatchArray) => Token, program: string, pos: number, count: (s: string) => Location): SubLexerOutput {
+    const match = program.slice(pos).match(regexp);
+    assert(match !== null);
+    assert(match.length > 0);
+    console.log("Match:", match);
+    return {
+        token: { token: getToken(match), loc: count(match[0]) },
+        newPos: pos + match[0].length,
+    }
+}
+
+function isComment(program: string, pos: number): boolean {
+    return program.slice(pos, pos + 2) === "//";
+}
+
+function lexComment(program: string, pos: number, count: (s: string) => Location): SubLexerOutput {
+    const re = /^\/\/ *(?<key>[a-zA-Z]\w*)?.*$/mu;
+    const getToken = (match: RegExpMatchArray): Token => {
+        return { tag: "comment", key: match.groups?.key };
+    };
+    return lexRegExp(re, getToken, program, pos, count);
+}
+
 function countLocation(loc: Location, symbol: string): Location {
     const locCopy = { ...loc };
     const numEnter = (symbol.match(/\n/g) || []).length;
@@ -136,6 +162,10 @@ export function lex(program: string): FullToken[] {
         ["/", { tag: "divide" }],
     ];
     nextChar: for (let i = 0; i < program.length;) {
+        if (isComment(program, i)) {
+            const { token, newPos } = lexComment(program, i, count);
+            tokens.push(token); i = newPos; continue;
+        }
         for (let j = 0; j < symbols.length; j++) {
             const [symbol, token] = symbols[j];
             if (match(program, i, symbol)) {
