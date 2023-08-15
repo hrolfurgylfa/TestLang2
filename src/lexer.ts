@@ -94,11 +94,11 @@ function lexNumber(program: string, pos: number, count: (s: string) => Location)
     return { token, newPos: pos };
 }
 
-function lexRegExp(regexp: RegExp, getToken: (match: RegExpMatchArray) => Token, program: string, pos: number, count: (s: string) => Location): SubLexerOutput {
+function lexRegExp(regexp: RegExp, getToken: (match: RegExpMatchArray) => Token,
+    program: string, pos: number, count: (s: string) => Location): SubLexerOutput {
     const match = program.slice(pos).match(regexp);
     assert(match !== null);
     assert(match.length > 0);
-    console.log("Match:", match);
     return {
         token: { token: getToken(match), loc: count(match[0]) },
         newPos: pos + match[0].length,
