@@ -44,14 +44,15 @@ commander
             console.log("-".repeat(50));
         }
         const consumer = new TokenConsumer(tokens);
-        const statements = parseStatements(consumer);
+        const programInfo = { jumpTable: new Map() };
+        const statements = parseStatements(programInfo, consumer);
         if (options.verbose) {
             console.log("Program from AST:");
             console.log(stringifyAst(statements));
             console.log("-".repeat(50));
             console.log("Program output:");
         }
-        evalSimple(statements);
+        evalSimple(programInfo, statements);
     });
 
 commander.parse();

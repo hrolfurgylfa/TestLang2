@@ -1,5 +1,4 @@
 import { TokenConsumer } from "./token_consumer"
-import { TLSyntaxError } from "./errors"
 import { assertUnreachable } from "./helpers"
 
 export type BinaryOperator = "==" | "!=" | "<" | ">" | "<=" | ">=" | "+" | "-" | "*" | "/"
@@ -19,70 +18,77 @@ export type SThen = { tag: "then", run: SScope | Expression, unless: SUnless | u
 export type SExpr = { tag: "expr", expr: Expression }
 export type SLet = { tag: "let", name: string, value: Expression }
 export type SNoop = { tag: "noop" }
-export type Statement = SScope | SIf | SExpr | SLet | SNoop
+export type SGoto = { tag: "goto", identifier: string }
+export type Statement = SScope | SIf | SExpr | SLet | SNoop | SGoto
 
-function syntaxError(tokens: TokenConsumer, expected: string, options?: { peek?: boolean }): never {
-    const defaultOpt = { peek: false };
-    const opt = { ...defaultOpt, ...options } || defaultOpt
-    const { token, loc } = opt.peek ? tokens.peekFull() : tokens.previousFull();
-    throw new TLSyntaxError(
-        `Expected ${expected} but found ${token.tag} instead.` +
-        `\n\nLine: ${loc.line}, Column: ${loc.column}.`);
-}
+export type JumpLocation = { scope: Statement[], numStatementsSkip: number }
+export type ProgramInfo = { jumpTable: Map<string, Array<JumpLocation>> }
 
-function parseExpressionBody(tokens: TokenConsumer): SScope | Expression {
+function parseExpressionBody(pi: ProgramInfo, tokens: TokenConsumer): SScope | Expression {
     let run: SScope | Expression;
     if (tokens.match("curlylbracket")) {
-        run = { tag: "scope", statements: parseStatements(tokens) };
+        run = { tag: "scope", statements: parseStatements(pi, tokens) };
     } else {
-        run = parseExpression(tokens);
+        run = parseExpression(pi, tokens);
     }
     return run;
 }
 
-function parseUnless(tokens: TokenConsumer): SUnless | undefined {
+function parseUnless(pi: ProgramInfo, tokens: TokenConsumer): SUnless | undefined {
     if (tokens.match("unless")) {
-        const condition = parseExpression(tokens);
+        const condition = parseExpression(pi, tokens);
 
-        return { tag: "unless", condition, then: parseThen(tokens) }
+        return { tag: "unless", condition, then: parseThen(pi, tokens) }
     } else return undefined;
 }
 
-function parseThen(tokens: TokenConsumer): SThen | undefined {
+function parseThen(pi: ProgramInfo, tokens: TokenConsumer): SThen | undefined {
     if (tokens.match("then")) {
-        const run = parseExpressionBody(tokens);
+        const run = parseExpressionBody(pi, tokens);
 
-        return { tag: "then", run, unless: parseUnless(tokens) }
+        return { tag: "then", run, unless: parseUnless(pi, tokens) }
     } else return undefined;
 }
 
-export function parseStatements(tokens: TokenConsumer): Array<Statement> {
+export function parseStatements(pi: ProgramInfo, tokens: TokenConsumer): Array<Statement> {
     const statements: Array<Statement> = [];
 
     while (true) {
         const token = tokens.peek();
         switch (token.tag) {
             case "semicolon":
-                console.assert(tokens.advance().tag == "semicolon");
+                tokens.consume("semicolon");
                 break;
             case "eof": return statements;
             case "curlyrbracket":
-                console.assert(tokens.advance().tag == "curlyrbracket");
+                tokens.consume("curlyrbracket");
                 return statements;
             case "comment":
-                console.assert(tokens.advance().tag == "comment");
+                const comment = tokens.consume("comment");
+                if (comment.key !== undefined) {
+                    statements.push({ tag: "goto", identifier: comment.key });
+                }
+                break;
+            case "come":
+                tokens.consume("come");
+                tokens.consume("from");
+                const identifier = tokens.consume("identifier").value;
+                const locations = pi.jumpTable.get(identifier) || [];
+                locations.push({ scope: statements, numStatementsSkip: statements.length });
+                pi.jumpTable.set(identifier, locations);
+                tokens.consume("semicolon");
                 break;
             default: {
-                const run = parseExpressionBody(tokens);
-                const unless = parseUnless(tokens);
+                const run = parseExpressionBody(pi, tokens);
+                const unless = parseUnless(pi, tokens);
                 if (unless) {
                     statements.push({ tag: "if", run, unless });
                 } else {
                     if (run.tag == "scope") statements.push(run);
                     else {
                         statements.push({ tag: "expr", expr: run });
-                        if (tokens.match("semicolon")) break;
-                        else syntaxError(tokens, "semicolon", { peek: true });
+                        tokens.consume("semicolon");
+                        break;
                     }
                 }
             }
@@ -90,14 +96,14 @@ export function parseStatements(tokens: TokenConsumer): Array<Statement> {
     }
 }
 
-export function parseFunctionParams(tokens: TokenConsumer): Array<Expression> {
+export function parseFunctionParams(pi: ProgramInfo, tokens: TokenConsumer): Array<Expression> {
     // Finish the no argument call seperately
     if (tokens.match("rbracket")) {
         return [];
     }
 
     // Functions with 1 or more arguments
-    const funcArguments = [parseExpression(tokens)];
+    const funcArguments = [parseExpression(pi, tokens)];
 
     while (true) {
         const token = tokens.advance();
@@ -105,74 +111,74 @@ export function parseFunctionParams(tokens: TokenConsumer): Array<Expression> {
             case "rbracket":
                 return funcArguments;
             case "comma":
-                const expr = parseExpression(tokens);
+                const expr = parseExpression(pi, tokens);
                 funcArguments.push(expr);
             default:
-                syntaxError(tokens, "closing bracket of function call or comma");
+                tokens.errExpected("closing bracket of function call or comma");
         }
     }
 }
 
 
-export function parseExpression(tokens: TokenConsumer): Expression {
-    return parseEquality(tokens);
+export function parseExpression(pi: ProgramInfo, tokens: TokenConsumer): Expression {
+    return parseEquality(pi, tokens);
 }
 
-export function parseEquality(tokens: TokenConsumer): Expression {
-    let expr = parseComparison(tokens);
+export function parseEquality(pi: ProgramInfo, tokens: TokenConsumer): Expression {
+    let expr = parseComparison(pi, tokens);
 
     let token; while ((token = tokens.match("equality"))) {
-        const right = parseComparison(tokens);
+        const right = parseComparison(pi, tokens);
         expr = { tag: "binary", left: expr, right, op: token.reverse ? "!=" : "==" };
     }
 
     return expr;
 }
 
-export function parseComparison(tokens: TokenConsumer): Expression {
-    let expr = parseTerm(tokens);
+export function parseComparison(pi: ProgramInfo, tokens: TokenConsumer): Expression {
+    let expr = parseTerm(pi, tokens);
 
     let token; while ((token = tokens.match("comparison"))) {
-        const right = parseTerm(tokens);
+        const right = parseTerm(pi, tokens);
         expr = { tag: "binary", left: expr, right, op: token.op };
     }
 
     return expr;
 }
 
-export function parseTerm(tokens: TokenConsumer): Expression {
-    let expr = parseFactor(tokens);
+export function parseTerm(pi: ProgramInfo, tokens: TokenConsumer): Expression {
+    let expr = parseFactor(pi, tokens);
 
     let token; while ((token = tokens.matchMul("add", "subtract"))) {
-        const right = parseFactor(tokens);
+        const right = parseFactor(pi, tokens);
         expr = { tag: "binary", left: expr, right, op: token.tag == "add" ? "+" : "-" };
     }
 
     return expr;
 }
 
-export function parseFactor(tokens: TokenConsumer): Expression {
-    let expr = parseUnary(tokens);
+export function parseFactor(pi: ProgramInfo, tokens: TokenConsumer): Expression {
+    let expr = parseUnary(pi, tokens);
 
     let token; while ((token = tokens.matchMul("multiply", "divide"))) {
-        const right = parseUnary(tokens);
+        const right = parseUnary(pi, tokens);
         expr = { tag: "binary", left: expr, right, op: token.tag == "multiply" ? "*" : "/" };
     }
 
     return expr;
 }
 
-export function parseUnary(tokens: TokenConsumer): Expression {
+export function parseUnary(pi: ProgramInfo, tokens: TokenConsumer): Expression {
     if (tokens.matchMul("bang", "subtract")) {
         const op = tokens.previous();
-        const right = parseUnary(tokens);
+        const right = parseUnary(pi, tokens);
         return { tag: "unary", expr: right, op: op.tag == "bang" ? "!" : "-" };
     }
 
-    return parsePrimary(tokens);
+    return parsePrimary(pi, tokens);
 }
 
-function parsePrimary(tokens: TokenConsumer): Expression {
+function parsePrimary(pi: ProgramInfo, tokens: TokenConsumer): Expression {
     const token = tokens.peek();
     tokens.advance();
 
@@ -181,7 +187,7 @@ function parsePrimary(tokens: TokenConsumer): Expression {
             // Parse function call
             if (tokens.peek()?.tag == "lbracket") {
                 console.assert(tokens.advance().tag == "lbracket");
-                return { tag: "call", name: token.value, arguments: parseFunctionParams(tokens) };
+                return { tag: "call", name: token.value, arguments: parseFunctionParams(pi, tokens) };
             }
 
             // Parse variable usage
@@ -191,14 +197,14 @@ function parsePrimary(tokens: TokenConsumer): Expression {
         case "true": return { tag: "int", value: 1 };
         case "false": return { tag: "int", value: 0 };
         case "lbracket": {
-            const expr = parseExpression(tokens);
+            const expr = parseExpression(pi, tokens);
             const token = tokens.advance();
             if (token.tag != "rbracket")
-                syntaxError(tokens, "right bracket");
+                tokens.errExpected("right bracket");
             return { tag: "brackets", expr };
         }
         default:
-            syntaxError(tokens, "expression");
+            tokens.errExpected("expression");
     }
 }
 
@@ -233,6 +239,7 @@ function _stringifyAst(statements: Array<Statement>, indent: number): string {
                 ret += `${indentStr}{\n${_stringifyAst(statement.statements, indent + 4)}\n${indentStr}}`;
                 break;
             case "if": ret += `${stringifyBodyExpression(statement.run, indent)}${stringifyUnless(statement.unless, indent)}`; break;
+            case "goto": ret += `// ${statement.identifier}`; break;
             default: assertUnreachable(statement);
         }
         ret += "\n";

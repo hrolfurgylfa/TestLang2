@@ -1,11 +1,13 @@
 program       -> statement* ;
-statement     -> ( ( expression | if ) ";" ) | comment ;
+statement     -> ( ( expression | if | come_from ) ";" )
+              | comment ;
 if            -> expr_body if_unless ;
 if_unless     -> "unless" expression if_than? ;
 if_than       -> "than" expr_body if_unless? ;
 body          -> "{" statement* "}" ;
 expr_body     -> expression | body;
 comment       -> // identifier anything* ;
+come_from     -> "come" "from" identifier ;
 
 expression    -> exprif ;
 exprif        -> equality ( "unless" equality "than" equality )+ ;

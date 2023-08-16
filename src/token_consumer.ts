@@ -1,3 +1,4 @@
+import { TLSyntaxError } from "./errors";
 import { FullToken, Location, Token } from "./lexer"
 
 export class TokenConsumer {
@@ -56,5 +57,21 @@ export class TokenConsumer {
         }
 
         return undefined;
+    }
+
+    errExpected(expected: string, options?: { peek?: boolean }): never {
+        const defaultOpt = { peek: false };
+        const opt = { ...defaultOpt, ...options } || defaultOpt
+        const { token, loc } = opt.peek ? this.peekFull() : this.previousFull();
+        throw new TLSyntaxError(
+            `Expected ${expected} but found ${token.tag} instead.` +
+            `\n\nLine: ${loc.line}, Column: ${loc.column}.`);
+    }
+
+
+    consume<Tag extends Token["tag"]>(tag: Tag): Extract<Token, { tag: Tag }> {
+        const token = this.matchMul(tag) as Extract<Token, { tag: Tag }>;
+        if (token === undefined) this.errExpected(tag);
+        return token;
     }
 }

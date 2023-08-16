@@ -25,6 +25,8 @@ export type Token =
     | { tag: "bang" }
     | { tag: "unless" }
     | { tag: "then" }
+    | { tag: "come" }
+    | { tag: "from" }
 
 type SubLexerOutput = { token: FullToken, newPos: number }
 
@@ -69,6 +71,8 @@ function lexIdentifier(program: string, pos: number, count: (s: string) => Locat
         case "false": token = { tag: "false" }; break;
         case "unless": token = { tag: "unless" }; break;
         case "then": token = { tag: "then" }; break;
+        case "come": token = { tag: "come" }; break;
+        case "from": token = { tag: "from" }; break;
         default:
             token = { tag: "identifier", value: identifier };
     }

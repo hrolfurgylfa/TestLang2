@@ -1,6 +1,7 @@
-import { Expression, SIf, SScope, SUnless, Statement } from "./parser"
+import { Expression, ProgramInfo, SIf, SScope, SUnless, Statement } from "./parser"
 import { assertUnreachable } from "./helpers";
 import { Map } from "immutable";
+import { TLNameError } from "./errors";
 
 export type VFuncInternal = { tag: "internal_func", name: string | undefined, args: Array<string>, func: (args: Array<Value>) => Value }
 export type VFunc = { tag: "func", name: string | undefined, args: Array<string>, body: Array<Statement>, env: Environment }
@@ -20,7 +21,7 @@ function toBoolean(value: Value): boolean {
 }
 
 function envNotFound(type: string, name: string): never {
-    throw Error(`${type} ${name} could not be found in the current scope, are you sure it is spelled correctly?`);
+    throw new TLNameError(`${type} ${name} could not be found in the current scope, are you sure it is spelled correctly?`);
 }
 
 function isComparible(left: Value, right: Value): boolean {
@@ -50,7 +51,7 @@ function isLess(left: Value, right: Value): boolean {
     }
 }
 
-export function evalExpression(env: Environment, expr: Expression): Value {
+export function evalExpression(pi: ProgramInfo, env: Environment, expr: Expression): Value {
     switch (expr.tag) {
         case "var":
             const val = env.get(expr.name);
@@ -66,18 +67,18 @@ export function evalExpression(env: Environment, expr: Expression): Value {
                         throw Error(`Tried calling function ${func.name} with ${expr.arguments.length} arguments while the function expects ${func.args.length} arguments.`)
                     const funcEnv = func.env;
                     for (let i = 0; i < func.args.length; i++)
-                        funcEnv.set(func.args[i], evalExpression(env, expr.arguments[i]));
-                    evalStatements(funcEnv, func.body);
+                        funcEnv.set(func.args[i], evalExpression(pi, env, expr.arguments[i]));
+                    evalStatements(pi, funcEnv, func.body);
                     return { tag: "none" };
                 case "internal_func":
-                    return func.func(expr.arguments.map(e => evalExpression(env, e)));
+                    return func.func(expr.arguments.map(e => evalExpression(pi, env, e)));
                 default:
                     throw Error(`Cannot call argument of type ${func.tag} as a function.`);
             }
-        case "brackets": return evalExpression(env, expr.expr);
+        case "brackets": return evalExpression(pi, env, expr.expr);
         case "binary":
-            const left = evalExpression(env, expr.left);
-            const right = evalExpression(env, expr.right);
+            const left = evalExpression(pi, env, expr.left);
+            const right = evalExpression(pi, env, expr.right);
             if (expr.op == "+" || expr.op == "-" || expr.op == "*" || expr.op == "/") {
                 if (left.tag == "int" && right.tag == "int") {
                     switch (expr.op) {
@@ -102,7 +103,7 @@ export function evalExpression(env: Environment, expr: Expression): Value {
             }
             break; // TODO: ignore
         case "unary":
-            const value = evalExpression(env, expr.expr);
+            const value = evalExpression(pi, env, expr.expr);
             if (value.tag != "int") {
                 throw Error(`Cannot use unary operator ${expr.op} on ${value.tag}`);
             }
@@ -113,24 +114,24 @@ export function evalExpression(env: Environment, expr: Expression): Value {
     }
 }
 
-function evalExpressionBody(env: Environment, exprBody: SScope | Expression) {
-    if (exprBody.tag !== "scope") evalExpression(env, exprBody);
-    else evalStatements(env, exprBody.statements);
+function evalExpressionBody(pi: ProgramInfo, env: Environment, exprBody: SScope | Expression) {
+    if (exprBody.tag !== "scope") evalExpression(pi, env, exprBody);
+    else evalStatements(pi, env, exprBody.statements);
 }
 
-function evalIfStatement(env: Environment, ifStatement: SIf) {
+function evalIfStatement(pi: ProgramInfo, env: Environment, ifStatement: SIf) {
     let unless: SUnless | undefined = ifStatement.unless;
     let run = ifStatement.run;
 
     while (true) {
         if (unless === undefined) {
-            evalExpressionBody(env, run);
+            evalExpressionBody(pi, env, run);
             return;
         }
 
-        if (!toBoolean(evalExpression(env, unless.condition))) {
+        if (!toBoolean(evalExpression(pi, env, unless.condition))) {
             // Unless is false, we execute the code in run.
-            evalExpressionBody(env, run);
+            evalExpressionBody(pi, env, run);
             return;
         } else if (unless.then === undefined) {
             // We don't have any more "else if" statements
@@ -142,19 +143,26 @@ function evalIfStatement(env: Environment, ifStatement: SIf) {
     }
 }
 
-export function evalStatements(env: Environment, statements: Array<Statement>) {
+export function evalStatements(pi: ProgramInfo, env: Environment, statements: Array<Statement>) {
     for (const statement of statements) {
         switch (statement.tag) {
-            case "expr": evalExpression(env, statement.expr); break;
+            case "expr": evalExpression(pi, env, statement.expr); break;
             case "noop": break;
             case "let":
-                env = env.set(statement.name, evalExpression(env, statement.value));
+                env = env.set(statement.name, evalExpression(pi, env, statement.value));
                 break;
             case "scope":
-                evalStatements(env, statement.statements);
+                evalStatements(pi, env, statement.statements);
                 break;
             case "if":
-                evalIfStatement(env, statement);
+                evalIfStatement(pi, env, statement);
+                break;
+            case "goto":
+                const identifier = statement.identifier;
+                const loc = pi.jumpTable.get(identifier);
+                // This comment may not have been intended to be a come from location
+                if (loc === undefined) break;
+                evalStatements(pi, env, statements.slice());
                 break;
             default:
                 assertUnreachable(statement);
@@ -162,7 +170,7 @@ export function evalStatements(env: Environment, statements: Array<Statement>) {
     }
 }
 
-export function evalSimple(statements: Array<Statement>) { evalStatements(defaultEnv, statements) }
+export function evalSimple(pi: ProgramInfo, statements: Array<Statement>) { evalStatements(pi, defaultEnv, statements) }
 
 export function toString(value: Value): string {
     switch (value.tag) {
