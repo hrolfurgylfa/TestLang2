@@ -1,6 +1,6 @@
 import { Expression, ProgramInfo, SIf, SScope, SUnless, Statement } from "./parser"
 import { assertUnreachable } from "./helpers";
-import { Map } from "immutable";
+import { Map as IMap } from "immutable";
 import { TLNameError } from "./errors";
 
 export type VFuncInternal = { tag: "internal_func", name: string | undefined, args: Array<string>, func: (args: Array<Value>) => Value }
@@ -9,7 +9,7 @@ export type VInt = { tag: "int", value: number }
 export type VNone = { tag: "none" }
 export type Value = VFuncInternal | VFunc | VInt | VNone
 
-export type Environment = Map<string, Value>
+export type Environment = IMap<string, Value>
 
 function toBoolean(value: Value): boolean {
     switch (value.tag) {
@@ -186,6 +186,6 @@ function print(args: Array<Value>): Value {
     return { tag: "none" };
 }
 
-export const defaultEnv: Map<string, Value> = Map({
+export const defaultEnv: IMap<string, Value> = IMap({
     print: { tag: "internal_func", name: "print", args: [], func: print },
 });
