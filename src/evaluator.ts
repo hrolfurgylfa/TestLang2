@@ -1,7 +1,7 @@
 import { Expression, ProgramInfo, SIf, SScope, SUnless, Statement } from "./parser"
 import { assertUnreachable } from "./helpers";
 import { Map as IMap } from "immutable";
-import { TLNameError } from "./errors";
+import { TLNameError, GotoException } from "./errors";
 
 export type VFuncInternal = { tag: "internal_func", name: string | undefined, args: Array<string>, func: (args: Array<Value>) => Value }
 export type VFunc = { tag: "func", name: string | undefined, args: Array<string>, body: Array<Statement>, env: Environment }
@@ -159,18 +159,35 @@ export function evalStatements(pi: ProgramInfo, env: Environment, statements: Ar
                 break;
             case "goto":
                 const identifier = statement.identifier;
-                const loc = pi.jumpTable.get(identifier);
+                const locations = pi.jumpTable.get(identifier);
                 // This comment may not have been intended to be a come from location
-                if (loc === undefined) break;
-                evalStatements(pi, env, statements.slice());
-                break;
+                if (locations === undefined) break;
+                const jl = locations[Math.floor(Math.random() * locations.length)];
+                throw new GotoException(jl, env);
             default:
                 assertUnreachable(statement);
         }
     }
 }
 
-export function evalSimple(pi: ProgramInfo, statements: Array<Statement>) { evalStatements(pi, defaultEnv, statements) }
+export function evalSimple(pi: ProgramInfo, initialStatements: Array<Statement>) {
+    let statements = initialStatements;
+    let env = defaultEnv;
+
+    while (true) {
+        try {
+            evalStatements(pi, defaultEnv, statements)
+        } catch (e: unknown) {
+            if (e instanceof GotoException) {
+                statements = e.jl.scope.slice(e.jl.numStatementsSkip);
+                env = e.env;
+                continue;
+            } else {
+                throw e;
+            }
+        }
+    }
+}
 
 export function toString(value: Value): string {
     switch (value.tag) {
