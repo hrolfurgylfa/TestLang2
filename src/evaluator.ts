@@ -176,7 +176,7 @@ export function evalSimple(pi: ProgramInfo, initialStatements: Array<Statement>)
 
     while (true) {
         try {
-            evalStatements(pi, defaultEnv, statements)
+            evalStatements(pi, env, statements);
         } catch (e: unknown) {
             if (e instanceof GotoException) {
                 statements = e.jl.scope.slice(e.jl.numStatementsSkip);
@@ -186,6 +186,7 @@ export function evalSimple(pi: ProgramInfo, initialStatements: Array<Statement>)
                 throw e;
             }
         }
+        break;
     }
 }
 
