@@ -5,12 +5,13 @@ export type BinaryOperator = "==" | "!=" | "<" | ">" | "<=" | ">=" | "+" | "-" |
 
 export type EVar = { tag: "var", name: string }
 export type EInt = { tag: "int", value: number }
+export type EString = { tag: "string", value: string }
 export type ECall = { tag: "call", name: string, arguments: Array<Expression> }
 export type EBrackets = { tag: "brackets", expr: Expression }
 export type EBinary = { tag: "binary", left: Expression, right: Expression, op: BinaryOperator }
 export type EUnary = { tag: "unary", expr: Expression, op: "!" | "-" }
 export type ESet = { tag: "set", name: string, expr: Expression }
-export type Expression = EVar | EInt | ECall | EBrackets | EBinary | EUnary | ESet
+export type Expression = EVar | EInt | EString | ECall | EBrackets | EBinary | EUnary | ESet
 
 export type SScope = { tag: "scope", statements: Array<Statement> }
 export type SIf = { tag: "if", run: SScope | Expression, unless: SUnless }
@@ -198,6 +199,7 @@ function parsePrimary(pi: ProgramInfo, tokens: TokenConsumer): Expression {
             return { tag: "var", name: token.value };
         }
         case "int": return { tag: "int", value: token.value };
+        case "string": return { tag: "string", value: token.value }
         case "true": return { tag: "int", value: 1 };
         case "false": return { tag: "int", value: 0 };
         case "lbracket": {
@@ -255,6 +257,7 @@ export function stringifyExpression(expr: Expression): string {
     switch (expr.tag) {
         case "var": return `${expr.name}`;
         case "int": return `${expr.value}`;
+        case "string": return `"${expr.value}"`;
         case "call": return `${expr.name}(${expr.arguments.map(stringifyExpression).join(", ")})`;
         case "brackets": return `(${stringifyExpression(expr.expr)})`;
         case "binary": return `${stringifyExpression(expr.left)} ${expr.op} ${stringifyExpression(expr.right)}`;

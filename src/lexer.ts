@@ -6,6 +6,7 @@ export type Token =
     | { tag: "comparison", op: "<" | ">" | "<=" | ">=" }
     | { tag: "equality", reverse: boolean }
     | { tag: "identifier", value: string }
+    | { tag: "string", value: string }
     | { tag: "int", value: number }
     | { tag: "comment", key: string | undefined }
     | { tag: "semicolon" }
@@ -121,6 +122,18 @@ function lexComment(program: string, pos: number, count: (s: string) => Location
     return lexRegExp(re, getToken, program, pos, count);
 }
 
+function isString(char: string): boolean {
+    return char === '"' || char === "'";
+}
+
+function lexString(program: string, pos: number, count: (s: string) => Location): SubLexerOutput {
+    const re = /(["'])(?<value>[^\\]*?(?:\\.[^\\]*?)*)\1/mu;
+    const getToken = (match: RegExpMatchArray): Token => {
+        return { tag: "string", value: match.groups!.value };
+    };
+    return lexRegExp(re, getToken, program, pos, count);
+}
+
 function countLocation(loc: Location, symbol: string): Location {
     const locCopy = { ...loc };
     const numEnter = (symbol.match(/\n/g) || []).length;
@@ -178,6 +191,10 @@ export function lex(program: string): FullToken[] {
                 if (token !== null) tokens.push({ token, loc });
                 continue nextChar;
             }
+        }
+        if (isString(program[i])) {
+            const { token, newPos } = lexString(program, i, count);
+            tokens.push(token); i = newPos; continue;
         }
         if (isNumber(program[i])) {
             const { token, newPos } = lexNumber(program, i, count);

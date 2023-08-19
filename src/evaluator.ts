@@ -6,8 +6,9 @@ import { TLNameError, GotoException } from "./errors";
 export type VFuncInternal = { tag: "internal_func", name: string | undefined, args: Array<string>, func: (args: Array<Value>) => Value }
 export type VFunc = { tag: "func", name: string | undefined, args: Array<string>, body: Array<Statement>, env: Environment }
 export type VInt = { tag: "int", value: number }
+export type VString = { tag: "string", value: string }
 export type VNone = { tag: "none" }
-export type Value = VFuncInternal | VFunc | VInt | VNone
+export type Value = VFuncInternal | VFunc | VInt | VString | VNone
 
 export type Environment = IMap<string, Value>
 
@@ -30,6 +31,7 @@ function isComparible(left: Value, right: Value): boolean {
         case "func": return false;
         case "none": return right.tag == "none";
         case "int": return right.tag == "int";
+        case "string": return right.tag == "string";
     }
 }
 
@@ -39,6 +41,7 @@ function isEqual(left: Value, right: Value): boolean {
         case "func": return false;
         case "none": return right.tag == "none";
         case "int": return right.tag == "int" && left.value == right.value;
+        case "string": return right.tag == "string" && left.value == right.value;
     }
 }
 
@@ -48,6 +51,7 @@ function isLess(left: Value, right: Value): boolean {
         case "func":
         case "none": return false;
         case "int": return right.tag == "int" && left.value < right.value;
+        case "string": return false;
     }
 }
 
@@ -58,6 +62,7 @@ export function evalExpression(pi: ProgramInfo, env: Environment, expr: Expressi
             if (val == undefined) envNotFound("Variable", expr.name);
             return { env, val };
         case "int": return { env, val: { tag: "int", value: expr.value } };
+        case "string": return { env, val: { tag: "string", value: expr.value } };
         case "set": {
             let { env: newEnv, val } = evalExpression(pi, env, expr.expr);
             newEnv = newEnv.set(expr.name, val);
@@ -207,6 +212,7 @@ export function toString(value: Value): string {
         case "internal_func": return `${value.name}(${value.args.join(", ")})`;
         case "func": return `${value.name}(${value.args.join(", ")})`;
         case "int": return `${value.value}`;
+        case "string": return `${value.value}`;
         case "none": return "none";
     }
 }
