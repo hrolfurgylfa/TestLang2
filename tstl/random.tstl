@@ -1,0 +1,13 @@
+// Start of the program
+
+// The first location
+come from Start;
+print(1);
+// Finish
+
+// The second location that can execute instead
+come from Start;
+print(2);
+// Finish
+
+come from Finish;
