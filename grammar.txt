@@ -17,9 +17,10 @@ term          -> factor ( ( "-" | "+" ) factor )* ;
 factor        -> unary ( ( "/" | "*" ) unary )* ;
 unary         -> ( "!" | "-" ) unary | primary ;
 primary       -> num+ | identifier | "true" | "false" | "none"
-               | "(" expression ")" | call | exprif ;
+               | "(" expression ")" | call | assignment ;
 call          -> identifier "(" expression ( "," expression )* ")"
                | identifier "()" ;
+assignment    -> identifier "=" expression ;
 
 identifier    -> char ( char | num )* ;
 char          -> [a-z] | [A-Z] | [\d] ;

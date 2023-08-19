@@ -1,0 +1,9 @@
+count = 1;
+
+come from restart;
+print(count);
+
+{
+    count = count + 1;
+    // restart if we get here
+} unless (count > 5);

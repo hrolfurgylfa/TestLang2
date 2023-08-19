@@ -9,17 +9,17 @@ export type ECall = { tag: "call", name: string, arguments: Array<Expression> }
 export type EBrackets = { tag: "brackets", expr: Expression }
 export type EBinary = { tag: "binary", left: Expression, right: Expression, op: BinaryOperator }
 export type EUnary = { tag: "unary", expr: Expression, op: "!" | "-" }
-export type Expression = EVar | EInt | ECall | EBrackets | EBinary | EUnary
+export type ESet = { tag: "set", name: string, expr: Expression }
+export type Expression = EVar | EInt | ECall | EBrackets | EBinary | EUnary | ESet
 
 export type SScope = { tag: "scope", statements: Array<Statement> }
 export type SIf = { tag: "if", run: SScope | Expression, unless: SUnless }
 export type SUnless = { tag: "unless", condition: Expression, then: SThen | undefined }
 export type SThen = { tag: "then", run: SScope | Expression, unless: SUnless | undefined }
 export type SExpr = { tag: "expr", expr: Expression }
-export type SLet = { tag: "let", name: string, value: Expression }
 export type SNoop = { tag: "noop" }
 export type SGoto = { tag: "goto", identifier: string }
-export type Statement = SScope | SIf | SExpr | SLet | SNoop | SGoto
+export type Statement = SScope | SIf | SExpr | SNoop | SGoto
 
 export type JumpLocation = { scope: Statement[], numStatementsSkip: number }
 export type ProgramInfo = { jumpTable: Map<string, Array<JumpLocation>> }
@@ -185,9 +185,13 @@ function parsePrimary(pi: ProgramInfo, tokens: TokenConsumer): Expression {
     switch (token.tag) {
         case "identifier": {
             // Parse function call
-            if (tokens.peek()?.tag == "lbracket") {
-                console.assert(tokens.advance().tag == "lbracket");
+            if (tokens.match("lbracket")) {
                 return { tag: "call", name: token.value, arguments: parseFunctionParams(pi, tokens) };
+            }
+
+            // Parse assignment
+            if (tokens.match("assign")) {
+                return { tag: "set", name: token.value, expr: parseExpression(pi, tokens) };
             }
 
             // Parse variable usage
@@ -232,14 +236,13 @@ function _stringifyAst(statements: Array<Statement>, indent: number): string {
     for (const statement of statements) {
         switch (statement.tag) {
             case "expr": ret += indentStr + stringifyExpression(statement.expr) + ";"; break;
-            case "let": ret += `${indentStr}let ${statement.name} = ${stringifyExpression(statement.value)};`; break;
             case "noop": break;
             case "scope":
                 console.log(`Hello ${indent}`);
                 ret += `${indentStr}{\n${_stringifyAst(statement.statements, indent + 4)}\n${indentStr}}`;
                 break;
             case "if": ret += `${stringifyBodyExpression(statement.run, indent)}${stringifyUnless(statement.unless, indent)}`; break;
-            case "goto": ret += `// ${statement.identifier}`; break;
+            case "goto": ret += `${indentStr}// ${statement.identifier}`; break;
             default: assertUnreachable(statement);
         }
         ret += "\n";
@@ -256,5 +259,6 @@ export function stringifyExpression(expr: Expression): string {
         case "brackets": return `(${stringifyExpression(expr.expr)})`;
         case "binary": return `${stringifyExpression(expr.left)} ${expr.op} ${stringifyExpression(expr.right)}`;
         case "unary": return `${expr.op}${stringifyExpression(expr.expr)}`;
+        case "set": return `${expr.name} = ${stringifyExpression(expr.expr)}`;
     }
 }

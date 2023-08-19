@@ -51,13 +51,18 @@ function isLess(left: Value, right: Value): boolean {
     }
 }
 
-export function evalExpression(pi: ProgramInfo, env: Environment, expr: Expression): Value {
+export function evalExpression(pi: ProgramInfo, env: Environment, expr: Expression): { "env": Environment, "val": Value } {
     switch (expr.tag) {
         case "var":
             const val = env.get(expr.name);
             if (val == undefined) envNotFound("Variable", expr.name);
-            return val;
-        case "int": return { tag: "int", value: expr.value };
+            return { env, val };
+        case "int": return { env, val: { tag: "int", value: expr.value } };
+        case "set": {
+            let { env: newEnv, val } = evalExpression(pi, env, expr.expr);
+            newEnv = newEnv.set(expr.name, val);
+            return { env: newEnv, val };
+        }
         case "call":
             const func = env.get(expr.name);
             if (func == undefined) envNotFound("Function", expr.name);
@@ -65,51 +70,63 @@ export function evalExpression(pi: ProgramInfo, env: Environment, expr: Expressi
                 case "func":
                     if (func.args.length != expr.arguments.length)
                         throw Error(`Tried calling function ${func.name} with ${expr.arguments.length} arguments while the function expects ${func.args.length} arguments.`)
-                    const funcEnv = func.env;
-                    for (let i = 0; i < func.args.length; i++)
-                        funcEnv.set(func.args[i], evalExpression(pi, env, expr.arguments[i]));
+                    let funcEnv = func.env;
+                    let scopeEnv = env;
+                    for (let i = 0; i < func.args.length; i++) {
+                        const argExpr = evalExpression(pi, scopeEnv, expr.arguments[i]);
+                        scopeEnv = argExpr.env;
+                        funcEnv = funcEnv.set(func.args[i], argExpr.val);
+                    }
                     evalStatements(pi, funcEnv, func.body);
-                    return { tag: "none" };
-                case "internal_func":
-                    return func.func(expr.arguments.map(e => evalExpression(pi, env, e)));
+                    return { env: scopeEnv, val: { tag: "none" } };
+                case "internal_func": {
+                    const values: Value[] = [];
+                    let scopeEnv = env;
+                    for (let i = 0; i < expr.arguments.length; i++) {
+                        const argExpr = evalExpression(pi, scopeEnv, expr.arguments[i]);
+                        scopeEnv = argExpr.env;
+                        values.push(argExpr.val);
+                    }
+                    return { env: scopeEnv, val: func.func(values) };
+                }
                 default:
                     throw Error(`Cannot call argument of type ${func.tag} as a function.`);
             }
         case "brackets": return evalExpression(pi, env, expr.expr);
         case "binary":
-            const left = evalExpression(pi, env, expr.left);
-            const right = evalExpression(pi, env, expr.right);
+            const { env: env1, val: left } = evalExpression(pi, env, expr.left);
+            const { env: env2, val: right } = evalExpression(pi, env1, expr.right);
             if (expr.op == "+" || expr.op == "-" || expr.op == "*" || expr.op == "/") {
                 if (left.tag == "int" && right.tag == "int") {
                     switch (expr.op) {
-                        case "+": return { tag: "int", value: left.value + right.value };
-                        case "-": return { tag: "int", value: left.value - right.value };
-                        case "*": return { tag: "int", value: left.value * right.value };
-                        case "/": return { tag: "int", value: left.value / right.value };
+                        case "+": return { env: env2, val: { tag: "int", value: left.value + right.value } };
+                        case "-": return { env: env2, val: { tag: "int", value: left.value - right.value } };
+                        case "*": return { env: env2, val: { tag: "int", value: left.value * right.value } };
+                        case "/": return { env: env2, val: { tag: "int", value: left.value / right.value } };
                     }
                 } else {
                     throw Error(`Cannot use operation ${expr.op} between ${left.tag} and ${right.tag}`);
                 }
             } else {
-                if (!isComparible(left, right)) return { tag: "int", value: 0 }
+                if (!isComparible(left, right)) return { env: env2, val: { tag: "int", value: 0 } };
                 switch (expr.op) {
-                    case "==": return { tag: "int", value: +isEqual(left, right) };
-                    case "!=": return { tag: "int", value: +!isEqual(left, right) };
-                    case "<": return { tag: "int", value: +isLess(left, right) };
-                    case ">=": return { tag: "int", value: +!isLess(left, right) };
-                    case ">": return { tag: "int", value: +(!isLess(left, right) && !isEqual(left, right)) };
-                    case "<=": return { tag: "int", value: +(!isLess(left, right) || isEqual(left, right)) };
+                    case "==": return { env: env2, val: { tag: "int", value: +isEqual(left, right) } };
+                    case "!=": return { env: env2, val: { tag: "int", value: +!isEqual(left, right) } };
+                    case "<": return { env: env2, val: { tag: "int", value: +isLess(left, right) } };
+                    case ">=": return { env: env2, val: { tag: "int", value: +!isLess(left, right) } };
+                    case ">": return { env: env2, val: { tag: "int", value: +(!isLess(left, right) && !isEqual(left, right)) } };
+                    case "<=": return { env: env2, val: { tag: "int", value: +(!isLess(left, right) || isEqual(left, right)) } };
                 }
             }
             break; // TODO: ignore
         case "unary":
-            const value = evalExpression(pi, env, expr.expr);
+            const { env: newEnv, val: value } = evalExpression(pi, env, expr.expr);
             if (value.tag != "int") {
                 throw Error(`Cannot use unary operator ${expr.op} on ${value.tag}`);
             }
             switch (expr.op) {
-                case "-": return { tag: "int", value: -value.value };
-                case "!": return { tag: "int", value: +!value.value };
+                case "-": return { env: newEnv, val: { tag: "int", value: -value.value } };
+                case "!": return { env: newEnv, val: { tag: "int", value: +!value.value } };
             }
     }
 }
@@ -119,23 +136,25 @@ function evalExpressionBody(pi: ProgramInfo, env: Environment, exprBody: SScope 
     else evalStatements(pi, env, exprBody.statements);
 }
 
-function evalIfStatement(pi: ProgramInfo, env: Environment, ifStatement: SIf) {
+function evalIfStatement(pi: ProgramInfo, env: Environment, ifStatement: SIf): Environment {
     let unless: SUnless | undefined = ifStatement.unless;
     let run = ifStatement.run;
 
     while (true) {
         if (unless === undefined) {
             evalExpressionBody(pi, env, run);
-            return;
+            return env;
         }
 
-        if (!toBoolean(evalExpression(pi, env, unless.condition))) {
+        const cond = evalExpression(pi, env, unless.condition);
+        env = cond.env;
+        if (!toBoolean(cond.val)) {
             // Unless is false, we execute the code in run.
             evalExpressionBody(pi, env, run);
-            return;
+            return env;
         } else if (unless.then === undefined) {
             // We don't have any more "else if" statements
-            return;
+            return env;
         } else {
             run = unless.then.run;
             unless = unless.then.unless;
@@ -146,17 +165,10 @@ function evalIfStatement(pi: ProgramInfo, env: Environment, ifStatement: SIf) {
 export function evalStatements(pi: ProgramInfo, env: Environment, statements: Array<Statement>) {
     for (const statement of statements) {
         switch (statement.tag) {
-            case "expr": evalExpression(pi, env, statement.expr); break;
             case "noop": break;
-            case "let":
-                env = env.set(statement.name, evalExpression(pi, env, statement.value));
-                break;
-            case "scope":
-                evalStatements(pi, env, statement.statements);
-                break;
-            case "if":
-                evalIfStatement(pi, env, statement);
-                break;
+            case "expr": env = evalExpression(pi, env, statement.expr).env; break;
+            case "scope": evalStatements(pi, env, statement.statements); break;
+            case "if": env = evalIfStatement(pi, env, statement); break;
             case "goto":
                 const identifier = statement.identifier;
                 const locations = pi.jumpTable.get(identifier);
