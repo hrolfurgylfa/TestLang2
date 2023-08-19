@@ -7,7 +7,7 @@ if_than       -> "than" expr_body if_unless? ;
 body          -> "{" statement* "}" ;
 expr_body     -> expression | body;
 comment       -> // identifier anything* ;
-come_from     -> "come" "from" identifier ;
+come_from     -> "come" "from" identifier ( "unless" expression )? ;
 
 expression    -> exprif ;
 exprif        -> equality ( "unless" equality "than" equality )+ ;

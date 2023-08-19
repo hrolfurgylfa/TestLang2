@@ -22,7 +22,7 @@ export type SNoop = { tag: "noop" }
 export type SGoto = { tag: "goto", identifier: string }
 export type Statement = SScope | SIf | SExpr | SNoop | SGoto
 
-export type JumpLocation = { scope: Statement[], numStatementsSkip: number }
+export type JumpLocation = { scope: Statement[], numStatementsSkip: number, cond: Expression | undefined }
 export type ProgramInfo = { jumpTable: Map<string, Array<JumpLocation>> }
 
 function parseExpressionBody(pi: ProgramInfo, tokens: TokenConsumer): SScope | Expression {
@@ -74,9 +74,12 @@ export function parseStatements(pi: ProgramInfo, tokens: TokenConsumer): Array<S
                 tokens.consume("come");
                 tokens.consume("from");
                 const identifier = tokens.consume("identifier").value;
+                const unlessExpr = tokens.match("unless") ? parseExpression(pi, tokens) : undefined;
+
                 const locations = pi.jumpTable.get(identifier) || [];
-                locations.push({ scope: statements, numStatementsSkip: statements.length });
+                locations.push({ scope: statements, numStatementsSkip: statements.length, cond: unlessExpr });
                 pi.jumpTable.set(identifier, locations);
+
                 tokens.consume("semicolon");
                 break;
             default: {

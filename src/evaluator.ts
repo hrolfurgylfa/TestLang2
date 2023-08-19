@@ -171,6 +171,10 @@ function evalIfStatement(pi: ProgramInfo, env: Environment, ifStatement: SIf): E
     }
 }
 
+function getRandomItem<T>(arr: Array<T>): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
 export function evalStatements(pi: ProgramInfo, env: Environment, statements: Array<Statement>) {
     for (const statement of statements) {
         switch (statement.tag) {
@@ -180,11 +184,19 @@ export function evalStatements(pi: ProgramInfo, env: Environment, statements: Ar
             case "if": env = evalIfStatement(pi, env, statement); break;
             case "goto":
                 const identifier = statement.identifier;
-                const locations = pi.jumpTable.get(identifier);
+                const locations = pi.jumpTable.get(identifier) ?? [];
+                const availableLocations = [];
+                for (let i = 0; i < locations.length; i++) {
+                    const loc = locations[i];
+                    const { env: newEnv, val }: { env: Environment, val: Value } =
+                        loc.cond !== undefined ? evalExpression(pi, env, loc.cond) :
+                        { env, val: { tag: "int", value: 0 } };
+                    if (!toBoolean(val)) availableLocations.push({ env: newEnv, jl: loc });
+                }
                 // This comment may not have been intended to be a come from location
-                if (locations === undefined) break;
-                const jl = locations[Math.floor(Math.random() * locations.length)];
-                throw new GotoException(jl, env);
+                if (availableLocations.length === 0) break;
+                const loc = getRandomItem(availableLocations);
+                throw new GotoException(loc.jl, loc.env);
             default:
                 assertUnreachable(statement);
         }
