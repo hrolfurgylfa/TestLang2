@@ -177,6 +177,7 @@ export function lex(program: string): FullToken[] {
         ["-", { tag: "subtract" }],
         ["*", { tag: "multiply" }],
         ["/", { tag: "divide" }],
+        ["!", { tag: "bang" }],
     ];
     nextChar: for (let i = 0; i < program.length;) {
         if (isComment(program, i)) {
