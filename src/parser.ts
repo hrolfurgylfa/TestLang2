@@ -108,12 +108,13 @@ export function parseFunctionParams(pi: ProgramInfo, tokens: TokenConsumer): Arr
 
     while (true) {
         const token = tokens.advance();
-        switch (token?.tag) {
+        switch (token.tag) {
             case "rbracket":
                 return funcArguments;
             case "comma":
                 const expr = parseExpression(pi, tokens);
                 funcArguments.push(expr);
+                break;
             default:
                 tokens.errExpected("closing bracket of function call or comma");
         }
