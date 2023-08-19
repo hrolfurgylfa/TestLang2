@@ -205,7 +205,7 @@ export function lex(program: string): FullToken[] {
             const { token, newPos } = lexIdentifier(program, i, count);
             tokens.push(token); i = newPos; continue;
         }
-        throw Error(`Unknown character \"${program[i]}\" at position ${i}`);
+        throw Error(`Unknown character \"${program[i]}\" at position line ${loc.line} column ${loc.column}.`);
     }
 
     tokens.push({ token: { tag: "eof" }, loc });
