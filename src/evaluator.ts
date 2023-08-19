@@ -109,6 +109,10 @@ export function evalExpression(pi: ProgramInfo, env: Environment, expr: Expressi
                         case "*": return { env: env2, val: { tag: "int", value: left.value * right.value } };
                         case "/": return { env: env2, val: { tag: "int", value: left.value / right.value } };
                     }
+                } else if (expr.op == "+" && left.tag == "string" && right.tag == "string") {
+                    return { env: env2, val: { tag: "string", value: left.value + right.value } };
+                } else if (expr.op == "*" && left.tag == "string" && right.tag == "int") {
+                    return { env: env2, val: { tag: "string", value: left.value.repeat(right.value) } };
                 } else {
                     throw Error(`Cannot use operation ${expr.op} between ${left.tag} and ${right.tag}`);
                 }
