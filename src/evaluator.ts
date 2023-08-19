@@ -1,5 +1,5 @@
 import { Expression, ProgramInfo, SIf, SScope, SUnless, Statement } from "./parser"
-import { assertUnreachable } from "./helpers";
+import { assert, assertUnreachable } from "./helpers";
 import { Map as IMap } from "immutable";
 import { TLNameError, GotoException } from "./errors";
 
@@ -221,11 +221,22 @@ export function toString(value: Value): string {
     }
 }
 
-function print(args: Array<Value>): Value {
-    console.log(args.map(toString).join(" "));
-    return { tag: "none" };
-}
+const internalFunctions: Array<[string, (args: Array<Value>) => Value]> = [
+    ["print", args => {
+        console.log(args.map(toString).join(" "));
+        return { tag: "none" };
+    }],
+    ["mod", args => {
+        assert(args.length === 2);
+        assert(args[0].tag === "int");
+        assert(args[1].tag === "int");
+        return { tag: "int", value: args[0].value % args[1].value }
+    }],
+];
 
-export const defaultEnv: IMap<string, Value> = IMap({
-    print: { tag: "internal_func", name: "print", args: [], func: print },
-});
+export const defaultEnv: IMap<string, Value> = IMap(
+    internalFunctions.map(([name, func]): [string, Value] =>
+        [name, { tag: "internal_func", name, args: [], func }]
+    ).concat([
+    ])
+);
