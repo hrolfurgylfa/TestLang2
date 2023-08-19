@@ -45,9 +45,9 @@ function isEqual(left: Value, right: Value): boolean {
 function isLess(left: Value, right: Value): boolean {
     switch (left.tag) {
         case "internal_func":
-        case "func": return false;
-        case "none": return right.tag == "none";
-        case "int": return right.tag == "int" && left.value == right.value;
+        case "func":
+        case "none": return false;
+        case "int": return right.tag == "int" && left.value < right.value;
     }
 }
 
