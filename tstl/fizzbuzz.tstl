@@ -2,8 +2,8 @@ i = 1;
 
 come from end unless i > 99;
 str = "";
-str = str + "Fizz" unless !(mod(i, 3) == 0);
-str = str + "Buzz" unless !(mod(i, 5) == 0);
+str = str + "Fizz" unless mod(i, 3) != 0;
+str = str + "Buzz" unless mod(i, 5) != 0;
 print(str) unless str == "" then print(i);
 
 i = i + 1;
