@@ -1,4 +1,4 @@
-import { Environment } from "./evaluator";
+import { Environment } from "./env";
 import { JumpLocation } from "./parser";
 
 export class TLSyntaxError extends Error {
