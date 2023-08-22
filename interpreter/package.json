@@ -1,0 +1,20 @@
+{
+  "name": "interpreter",
+  "version": "1.0.0",
+  "description": "The interpreter of TestLang2",
+  "main": "src/app.ts",
+  "directories": {
+    "lib": "src",
+    "test": "test"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.3",
+    "ts-jest": "^29.1.1"
+  },
+  "dependencies": {},
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "Hrólfur Gylfason",
+  "license": ""
+}

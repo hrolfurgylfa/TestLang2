@@ -9,11 +9,11 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
-    "commander": "^11.0.0"
+    "commander": "^11.0.0",
+    "interpreter": "file:../interpreter"
   },
   "scripts": {
     "build": "npx tsc",
-    "run": "npx ts-node src/app.ts",
-    "test": "jest"
+    "run": "npx ts-node src/app.ts"
   }
 }
