@@ -23,7 +23,8 @@ export type SGoto = { tag: "goto", identifier: string }
 export type Statement = SScope | SIf | SExpr | SNoop | SGoto
 
 export type JumpLocation = { scope: Statement[], numStatementsSkip: number, cond: Expression | undefined }
-export type ProgramInfo = { jumpTable: Map<string, Array<JumpLocation>> }
+export type LogFunc = (...data: any[]) => void
+export type ProgramInfo = { jumpTable: Map<string, Array<JumpLocation>>, log: LogFunc }
 
 function parseExpressionBody(pi: ProgramInfo, tokens: TokenConsumer): SScope | Expression {
     let run: SScope | Expression;

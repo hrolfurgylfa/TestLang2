@@ -1,12 +1,12 @@
 import { evalSimple } from "./evaluator";
 import { lex, stringifyTokens } from "./lexer";
-import { parseStatements, stringifyAst } from "./parser";
+import { LogFunc, parseStatements, stringifyAst } from "./parser";
 import { TokenConsumer } from "./token_consumer";
 
-type RunOptions = { verbose?: boolean };
+type RunOptions = { verbose?: boolean, log?: LogFunc };
 
 export function execute(program: string, opt?: RunOptions) {
-    const defaultOpt = { verbose: false };
+    const defaultOpt = { verbose: false, log: console.log };
     const options = { ...defaultOpt, ...opt }
 
     if (options.verbose) {
@@ -21,7 +21,7 @@ export function execute(program: string, opt?: RunOptions) {
         console.log("-".repeat(50));
     }
     const consumer = new TokenConsumer(tokens);
-    const programInfo = { jumpTable: new Map() };
+    const programInfo = { jumpTable: new Map(), log: options.log };
     const statements = parseStatements(programInfo, consumer);
     if (options.verbose) {
         console.log("Program from AST:");

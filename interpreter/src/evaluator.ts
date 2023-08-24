@@ -3,7 +3,8 @@ import { assert, assertUnreachable } from "./helpers";
 import { TLNameError, GotoException } from "./errors";
 import { Environment } from "./env";
 
-export type VFuncInternal = { tag: "internal_func", name: string | undefined, args: Array<string>, func: (args: Array<Value>) => Value }
+type InternalFunc = (pi: ProgramInfo, env: Environment, args: Array<Value>) => Value;
+export type VFuncInternal = { tag: "internal_func", name: string | undefined, args: Array<string>, func: InternalFunc }
 export type VFunc = { tag: "func", name: string | undefined, args: Array<string>, body: Array<Statement>, env: Environment }
 export type VInt = { tag: "int", value: number }
 export type VString = { tag: "string", value: string }
@@ -90,7 +91,7 @@ export function evalExpression(pi: ProgramInfo, env: Environment, expr: Expressi
                         scopeEnv = argExpr.env;
                         values.push(argExpr.val);
                     }
-                    return { env: scopeEnv, val: func.func(values) };
+                    return { env: scopeEnv, val: func.func(pi, env, values) };
                 }
                 default:
                     throw Error(`Cannot call argument of type ${func.tag} as a function.`);
@@ -231,12 +232,12 @@ export function toString(value: Value): string {
     }
 }
 
-const internalFunctions: Array<[string, (args: Array<Value>) => Value]> = [
-    ["print", args => {
-        console.log(args.map(toString).join(" "));
+const internalFunctions: Array<[string, InternalFunc]> = [
+    ["print", (pi, _, args) => {
+        pi.log(args.map(toString).join(" "));
         return { tag: "none" };
     }],
-    ["mod", args => {
+    ["mod", (_, __, args) => {
         assert(args.length === 2);
         assert(args[0].tag === "int");
         assert(args[1].tag === "int");
