@@ -245,7 +245,6 @@ function _stringifyAst(statements: Array<Statement>, indent: number): string {
             case "expr": ret += indentStr + stringifyExpression(statement.expr) + ";"; break;
             case "noop": break;
             case "scope":
-                console.log(`Hello ${indent}`);
                 ret += `${indentStr}{\n${_stringifyAst(statement.statements, indent + 4)}\n${indentStr}}`;
                 break;
             case "if": ret += `${stringifyBodyExpression(statement.run, indent)}${stringifyUnless(statement.unless, indent)}`; break;
