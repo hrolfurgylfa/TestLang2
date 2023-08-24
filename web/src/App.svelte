@@ -18,7 +18,6 @@
       <div class="col-span-2">
         <CodeEditor bind:code bind:focusCode />
         <ProgramOutput bind:code />
-        <div>{code}</div>
       </div>
       <Examples />
     </div>
