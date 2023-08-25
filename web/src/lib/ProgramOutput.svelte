@@ -1,30 +1,40 @@
 <script lang="ts">
+  import { assertUnreachable } from "interpreter/src/helpers";
+  import type { WorkerMessage } from "../execute.worker";
+
   export let code: string;
 
-  import { execute } from "interpreter";
+  let programOutput: Array<["log" | "err", string]> = [];
+  let worker: Worker | undefined = undefined;
 
-  let programOutput = "";
+  function startWorker() {
+    worker = new Worker(new URL("../execute.worker.ts", import.meta.url), {
+      type: "module",
+    });
+    worker.postMessage(code);
+    worker.addEventListener("message", (e) => {
+      const data = e.data as WorkerMessage;
+      switch (data.tag) {
+        case "log":
+          programOutput.push(["log", data.text]);
+          programOutput = programOutput;
+          break;
+        case "err":
+          programOutput.push(["err", data.text]);
+          programOutput = programOutput;
+          break;
+        case "done":
+          break;
+        default:
+          assertUnreachable(data);
+      }
+    });
+  }
+
   const buttons: Array<[string, string, () => void]> = [
-    [
-      "Run",
-      "bg-green-400",
-      () => {
-        execute(code, {
-          log: (...data: unknown[]) => {
-            const out = data.map((o) => o.toString());
-            programOutput += out + "\n";
-          },
-        });
-      },
-    ],
-    ["Stop", "bg-red-400", () => {}],
-    [
-      "Clear",
-      "bg-gray-200",
-      () => {
-        programOutput = "";
-      },
-    ],
+    ["Run", "bg-green-400", startWorker],
+    ["Stop", "bg-red-400", worker?.terminate],
+    ["Clear", "bg-gray-200", () => (programOutput = [])],
   ];
 </script>
 
@@ -38,8 +48,10 @@
   </div>
   <h4>Program Output:</h4>
   <div>
-    {#each programOutput.split("\n") as line}
-      <p>{line}</p>
+    {#each programOutput as entry}
+      <p class={entry[0] == "log" ? "" : "bg-red-400"}>
+        {entry[1]}
+      </p>
     {/each}
   </div>
 </div>
