@@ -40,17 +40,17 @@
 
 <div>
   <div class="grid grid-cols-3 gap-4">
-    {#each buttons as button}
-      <button on:click={button[2]} class="px-4 py-1 {button[1]} rounded-md">
-        {button[0]}
+    {#each buttons as [text, color, func]}
+      <button on:click={func} class="px-4 py-1 {color} rounded-md">
+        {text}
       </button>
     {/each}
   </div>
   <h4>Program Output:</h4>
   <div>
-    {#each programOutput as entry}
-      <p class={entry[0] == "log" ? "" : "bg-red-400"}>
-        {entry[1]}
+    {#each programOutput as [type, msg]}
+      <p class={type == "log" ? "" : "bg-red-400"}>
+        {msg}
       </p>
     {/each}
   </div>
