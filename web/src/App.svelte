@@ -19,7 +19,7 @@
         <CodeEditor bind:code bind:focusCode />
         <ProgramOutput bind:code />
       </div>
-      <Examples />
+      <Examples bind:code />
     </div>
   </div>
 </main>
