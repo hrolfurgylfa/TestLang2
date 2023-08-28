@@ -7,21 +7,15 @@
   import * as ace from "ace-builds/src-noconflict/ace";
 
   let editor: AceAjax.Editor | undefined;
-  let editorUpdate = false;
   function setupAce(node: HTMLDivElement) {
     editor = ace.edit("editor");
     editor.addEventListener("change", (e) => {
-      editorUpdate = true;
       code = editor.session.doc.getValue();
     });
     editor.focus();
   }
-  $: {
-    if (editorUpdate === true) editorUpdate = false;
-    else {
-      editor?.session.doc.setValue(code);
-    }
-  }
+  $: if (editor && code != editor.session.doc.getValue())
+    editor.session.doc.setValue(code);
 </script>
 
 <div class="mb-6">
