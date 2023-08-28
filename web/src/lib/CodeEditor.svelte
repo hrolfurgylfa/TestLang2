@@ -20,9 +20,4 @@
 
 <div class="mb-6">
   <div use:setupAce id="editor" class="w-full h-72" />
-  <p>{code}</p>
-  <button
-    on:click={() => (code = "print('Hello World!')")}
-    class="border border-gray-300 rounded-lg p-2">Change</button
-  >
 </div>
